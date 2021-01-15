@@ -475,7 +475,7 @@ func getContainersJSON(c *context, w http.ResponseWriter, r *http.Request) {
 		}
 
 		// Skip swarm containers unless -a was specified.
-		if strings.Split(container.Image, ":")[0] == "swarm" && !all {
+		if container.IsSystem() && !all {
 			continue
 		}
 

@@ -2,6 +2,7 @@ package cluster
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
 
@@ -96,6 +97,22 @@ func FullStateString(state *types.ContainerState) string {
 // Refresh container
 func (c *Container) Refresh() (*Container, error) {
 	return c.Engine.refreshContainer(c.ID, true)
+}
+
+// IsSystem retruns true if container is a `system` container, which is not normally shown when
+// listing containers
+func (c *Container) IsSystem() bool {
+	if strings.Split(c.Image, ":")[0] == "swarm" {
+		return true
+	}
+
+	v, ok := c.Config.Labels[SwarmLabelNamespace+".system"]
+	if !ok {
+		return false
+	}
+
+	b, err := strconv.ParseBool(v)
+	return err != nil || b
 }
 
 // Containers represents a list of containers
