@@ -11,6 +11,8 @@ type weightedNode struct {
 	Node *node.Node
 	// Weight is the inherent value of this node.
 	Weight int64
+	// Containers is the number of containers running on this node
+	Containers int
 }
 
 type weightedNodeList []*weightedNode
@@ -30,10 +32,18 @@ func (n weightedNodeList) Less(i, j int) bool {
 	)
 
 	// If the nodes have the same weight sort them out by number of containers.
-	if ip.Weight == jp.Weight {
-		return len(ip.Node.Containers) < len(jp.Node.Containers)
+	if ip.Weight != jp.Weight {
+		return ip.Weight < jp.Weight
 	}
-	return ip.Weight < jp.Weight
+	if ip.Containers != jp.Containers {
+		return ip.Containers < jp.Containers
+	}
+	ipFreeCpus := ip.Node.TotalCpus - ip.Node.UsedCpus
+	jpFreeCpus := jp.Node.TotalCpus - jp.Node.UsedCpus
+	if ipFreeCpus != jpFreeCpus {
+		return ipFreeCpus > jpFreeCpus
+	}
+	return ip.Node.TotalMemory-ip.Node.UsedMemory > jp.Node.TotalMemory-jp.Node.UsedMemory
 }
 
 func weighNodes(config *cluster.ContainerConfig, nodes []*node.Node, healthinessFactor int64) (weightedNodeList, error) {
@@ -61,7 +71,9 @@ func weighNodes(config *cluster.ContainerConfig, nodes []*node.Node, healthiness
 		}
 
 		if cpuScore <= 100 && memoryScore <= 100 {
-			weightedNodes = append(weightedNodes, &weightedNode{Node: node, Weight: cpuScore + memoryScore + healthinessFactor*node.HealthIndicator})
+			weightedNodes = append(weightedNodes, &weightedNode{Node: node,
+				Weight:     cpuScore + memoryScore + healthinessFactor*node.HealthIndicator,
+				Containers: len(node.Containers)})
 		}
 	}
 
